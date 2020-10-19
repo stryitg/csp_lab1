@@ -11,7 +11,7 @@ FordFulkerson::FordFulkerson(const AdjacmentMatrix& m)
 , m_s(0)
 , m_t(m.size() - 1) {}
 
-FordFulkerson::STComponents FordFulkerson::ComputeMinCut() {
+FordFulkerson::STComponents FordFulkerson::ComputeMincut() {
     while (FindAugmentingPath()) {
         UpdateResiduals();
         ResetBfs();

@@ -1,5 +1,6 @@
 #include <TabledGraph.hpp>
 #include <FordFulkerson.hpp>
+#include <AlphaExpansion.hpp>
 #include <iostream>
 #include <numeric>
 #include <algorithm>
@@ -28,7 +29,7 @@ std::vector<std::vector<size_t>> ReadFromFile(const std::string& file_path) {
 }
 
 double g(size_t k1, size_t k2) {
-    const double L = 1;
+    const double L = 1.7;
     const double S = 5;
     const auto d = (static_cast<double>(k1) - static_cast<double>(k2)) / S;
     return L * std::log(1 + /*0.5*/ d * d);
@@ -44,7 +45,7 @@ void SetG(TabledGraph& graph, size_t i, size_t j, size_t h, size_t new_i, size_t
     const auto t2 = new_i * h + new_j;
     for (size_t k = 0; k < kMaxK + 1; ++k) {
         for (size_t k_ = 0; k_ < kMaxK + 1; ++k_) {
-            graph.Get_G({{.t = t1,.k = k}, {.t = t2, .k = k_}}) = g(k, k_);
+            graph.GetG({{.t = t1,.k = k}, {.t = t2, .k = k_}}) = g(k, k_);
         }
     }
 }
@@ -73,7 +74,7 @@ void SetQ(TabledGraph& graph, const std::vector<std::vector<size_t>>& img) {
         for (size_t j = 0; j < img[0].size(); ++j) {
             for (size_t k = 0; k < kMaxK + 1; ++k) {
                 const auto t = i * img.size() + j;
-                graph.Get_Q({.t = t, .k = k}) = q(img[i][j], k);
+                graph.GetQ({.t = t, .k = k}) = q(img[i][j], k);
             }
         }
     }
@@ -115,7 +116,7 @@ struct LaplaceDistribution {
     double m_scale;
 };
 
-void WriteToFile(const std::string& file_path, const std::vector<size_t>& path, size_t h, size_t w) {
+void WriteToFile(const std::string& file_path, const std::vector<size_t>& labels, size_t h, size_t w) {
     std::ofstream os(file_path);
     if (!os.is_open()) {
         throw std::runtime_error("Failed to open_file " + file_path);
@@ -123,10 +124,22 @@ void WriteToFile(const std::string& file_path, const std::vector<size_t>& path, 
     os << h << " " << w << std::endl;
     for (size_t i = 0; i < h; ++i) {
         for (size_t j = 0; j < w; ++j) {
-            os << path[i * h + j] << std::setw(5);
+            os << labels[i * h + j] << std::setw(5);
         }
         os << std::setw(0) << std::endl;
     }
+}
+
+std::vector<size_t> BinarizationAlgo(const TabledGraph& gr) {
+    const auto m = gr.ToMincut();
+    FordFulkerson ff(m);
+    const auto mc = ff.ComputeMincut();
+    return gr.ToLabels(mc);
+}
+
+std::vector<size_t> AlphaExpansionAlgo(const TabledGraph& gr) {
+    AlphaExpansion ae(gr);
+    return ae.ComputeLabels();
 }
 
 int main() {
@@ -135,10 +148,12 @@ int main() {
     // AddNoise<LaplaceDistribution>(img, static_cast<double>(kMaxK) / 2, static_cast<double>(kMaxK) / 3);
     // AddNoise<std::uniform_int_distribution<size_t>>(img, static_cast<double>(kMaxK) / 2, static_cast<double>(kMaxK) / 3);
     const auto gr = CreateGraph(img);
-    const auto m = gr.ToMinCut();
-    FordFulkerson ff(m);
-    const auto mc = ff.ComputeMinCut();
-    const auto p = gr.ToPath(mc);
-    WriteToFile("out.txt", p, img.size(), img[0].size());
+    
+    const auto labels_bin = BinarizationAlgo(gr);
+    WriteToFile("out_binarization.txt", labels_bin, img.size(), img[0].size());
+    
+    const auto labels_alpha = AlphaExpansionAlgo(gr);
+    WriteToFile("out_alpha.txt", labels_alpha, img.size(), img[0].size());
+    
     return 0;
 }

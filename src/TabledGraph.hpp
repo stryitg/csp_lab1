@@ -19,13 +19,16 @@ public:
     
     TabledGraph(size_t T, size_t K, double vals = 0.0);    
     
-    AdjacmentMatrix ToMinCut() const;
-    std::vector<size_t> ToPath(const FordFulkerson::STComponents& bg_solution) const;
+    AdjacmentMatrix ToMincut() const;
+    std::vector<size_t> ToLabels(const FordFulkerson::STComponents& bg_solution) const;
     
-    const double& Get_Q(const Node& n) const;
-    double& Get_Q(const Node& n);
-    const double& Get_G(const Edge& e) const;
-    double& Get_G(const Edge& e);
+    const double& GetQ(const Node& n) const;
+    double& GetQ(const Node& n);
+    const double& GetG(const Edge& e) const;
+    double& GetG(const Edge& e);
+    
+    size_t GetT() const { return m_T; }
+    size_t GetK() const { return m_K; }
     
 private:
     using NodesVals = std::vector<std::vector<double>>;

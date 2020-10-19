@@ -10,7 +10,7 @@ public:
     };
     
     FordFulkerson(const AdjacmentMatrix& m);
-    STComponents ComputeMinCut();
+    STComponents ComputeMincut();
     
 private:
     bool FindAugmentingPath();
