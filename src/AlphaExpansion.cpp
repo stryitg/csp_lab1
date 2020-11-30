@@ -29,9 +29,6 @@ std::vector<size_t> AlphaExpansion::ComputeLabels() {
     for (const auto alpha : m_alpha_ordering) {
         m_alpha = alpha;
         MakeAlphaExpansion();
-        // if (!IsEnergyDecreased()) {
-        //     break;
-        // }
     }
     return m_labels;
 }

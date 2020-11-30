@@ -1,19 +1,56 @@
 #include <TabledGraph.hpp>
 #include <limits>
 #include <iostream>
+#include <cassert>
+#include <algorithm>
 
-TabledGraph::TabledGraph(size_t T, size_t K, double vals) 
-: m_g(CreateEdges(T, K, vals))
+TabledGraph::TabledGraph(size_t T, size_t K, const Neighbors& neighbors, double vals) 
+: m_sparse(!neighbors.empty())
+, m_neighbors(neighbors)
+, m_g(CreateEdges(T, K, vals))
 , m_q(CreateNodes(T, K, vals))
 , m_T(T)
-, m_K(K) {}
-
-TabledGraph::EdgesVals TabledGraph::CreateEdges(size_t T, size_t K, double vals) {
-    return std::vector<std::vector<NodesVals>>(T, std::vector<NodesVals>(K, CreateNodes(T, K, vals)));
+, m_K(K) {
 }
 
-TabledGraph::NodesVals TabledGraph::CreateNodes(size_t T, size_t K, double vals) {
+TabledGraph::EdgesVals TabledGraph::CreateEdges(size_t T, size_t K, double vals) const {
+    if (!m_sparse) {
+        return std::vector<std::vector<NodesVals>>(T, std::vector<NodesVals>(K, CreateNodes(T, K, vals)));
+    }
+    else {
+        const auto max_size = GetMaxNeighborsSize();
+        return std::vector<std::vector<std::vector<std::vector<double>>>>(T, 
+                std::vector<std::vector<std::vector<double>>>(max_size, 
+                std::vector<std::vector<double>>(K, std::vector<double>(K, vals))));
+    }
+}
+
+size_t TabledGraph::GetMaxNeighborsSize() const {
+    size_t max = 0;
+    for (const auto [key, val] : m_neighbors)
+        max = std::max(max, val.size());
+    return max;
+}
+
+
+TabledGraph::NodesVals TabledGraph::CreateNodes(size_t T, size_t K, double vals) const {
     return std::vector<std::vector<double>>(T, std::vector<double>(K, vals));
+}
+
+void TabledGraph::PropagateQs() {
+    for (size_t t = 0; t < m_T; ++t) {
+        for (size_t k = 0; k < m_K; ++k) {
+            for (const auto t_ : m_neighbors[t]) {
+                for (size_t k_ = 0; k_ < m_K; ++k_) {
+                    if (t > t_) {
+                        GetG({{.t = t_, .k = k_}, {.t = t, .k = k}}) += GetQ({.t = t, .k = k}) / m_neighbors[t].size();
+                    } else {
+                        GetG({{.t = t, .k = k}, {.t = t_, .k = k_}}) += GetQ({.t = t, .k = k}) / m_neighbors[t].size();
+                    }
+                }
+            }
+        }
+    }
 }
 
 TabledGraph TabledGraph::ToBinaryGraph() const {
@@ -62,16 +99,16 @@ void TabledGraph::InitEdgesForBGraph(TabledGraph& bg) const {
 }
 
 double TabledGraph::ComputeBinaryEdge(const Edge& e) const {
-    if (e.n1.k == m_K - 1 && e.n2.k == m_K - 1) {
+    if (e.n.k == m_K - 1 && e.n_.k == m_K - 1) {
         return GetG(e);
-    } else if (e.n1.k == m_K - 1 && e.n2.k < m_K - 1) {
-        return GetG(e) - GetG({.n1 = e.n1, {.t = e.n2.t, .k = e.n2.k + 1}});
-    } else if (e.n1.k < m_K - 1 && e.n2.k == m_K - 1) {
-        return GetG(e) - GetG({{.t = e.n1.t, .k = e.n1.k + 1}, .n2 = e.n2});
+    } else if (e.n.k == m_K - 1 && e.n_.k < m_K - 1) {
+        return GetG(e) - GetG({.n = e.n, {.t = e.n_.t, .k = e.n_.k + 1}});
+    } else if (e.n.k < m_K - 1 && e.n_.k == m_K - 1) {
+        return GetG(e) - GetG({{.t = e.n.t, .k = e.n.k + 1}, .n_ = e.n_});
     } else {
-        return GetG(e) - GetG({{.t = e.n1.t, .k = e.n1.k + 1}, .n2 = e.n2}) -
-               GetG({.n1 = e.n1, {.t = e.n2.t, .k = e.n2.k + 1}}) + GetG({{.t = e.n1.t, .k = e.n1.k + 1}, 
-                                                                            {.t = e.n2.t, .k = e.n2.k + 1}});
+        return GetG(e) - GetG({{.t = e.n.t, .k = e.n.k + 1}, .n_ = e.n_}) -
+               GetG({.n = e.n, {.t = e.n_.t, .k = e.n_.k + 1}}) + GetG({{.t = e.n.t, .k = e.n.k + 1}, 
+                                                                            {.t = e.n_.t, .k = e.n_.k + 1}});
     }
 }
 
@@ -208,7 +245,16 @@ double& TabledGraph::GetQ(const Node& n) {
 }
 
 const double& TabledGraph::GetG(const Edge& e) const {
-    return m_g[e.n1.t][e.n1.k][e.n2.t][e.n2.k];
+    if (!m_sparse) {
+        return m_g[e.n.t][e.n.k][e.n_.t][e.n_.k];
+    } else {
+        const auto iter = m_neighbors.find({e.n.t});
+        assert(iter != m_neighbors.end());
+        auto pos_iter = std::find(iter->second.begin(), iter->second.end(), e.n_.t);
+        assert(pos_iter != iter->second.end());
+        return m_g[e.n.t][pos_iter - iter->second.begin()][e.n.k][e.n_.k];
+    }
+    
 }
 
 double& TabledGraph::GetG(const Edge& n) {

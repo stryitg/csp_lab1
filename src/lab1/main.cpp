@@ -29,8 +29,8 @@ std::vector<std::vector<size_t>> ReadFromFile(const std::string& file_path) {
 }
 
 double g(size_t k1, size_t k2) {
-    const double L = 1.7;
-    const double S = 5;
+    const double L = 0.5;
+    const double S = 1;
     const auto d = (static_cast<double>(k1) - static_cast<double>(k2)) / S;
     return L * std::log(1 + /*0.5*/ d * d);
 }
