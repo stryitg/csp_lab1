@@ -8,12 +8,16 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3")
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
-add_executable(lab1 ${SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/src/lab1/main.cpp)
-target_include_directories(lab1 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/)
-
 find_package(OpenCV COMPONENTS core highgui imgcodecs imgproc REQUIRED)
+find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
-add_executable(lab2 ${SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/src/lab2/main.cpp)
-target_link_directories(lab2 PRIVATE ${OpenCV_LIBRARY_DIR})
-target_link_libraries(lab2 PRIVATE ${OpenCV_LIBRARIES})
-target_include_directories(lab2 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/ ${OpenCV_INCLUDE_DIRS})
+macro(create_executable name)
+    add_executable(${name} ${SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/src/${name}/main.cpp)
+    target_link_directories(${name} PRIVATE ${OpenCV_LIBRARY_DIR})
+    target_link_libraries(${name} PRIVATE Eigen3::Eigen ${OpenCV_LIBRARIES})
+    target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/ ${OpenCV_INCLUDE_DIRS})
+endmacro()
+
+create_executable(lab1)
+create_executable(lab2)
+create_executable(lab3)
